@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: art_scraper
+    volumes:
+      - ./images:/app/images  # Map the images directory for storing downloaded images
+      - ./Samuel.json:/app/Samuel.json  # Map the output JSON file
+    environment:
+      - PYTHONUNBUFFERED=1  # Ensure real-time log output
+    restart: always
