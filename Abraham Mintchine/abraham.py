@@ -12,18 +12,17 @@ main_url = "https://mintchinesociety.org/?page_id=1388"
 script_dir = os.path.dirname(__file__)
 
 chrome_options = Options()
-chrome_options.add_argument("--headless")  # Запуск в фоновом режиме
-chrome_options.add_argument("--disable-gpu")  # Отключение GPU для фонового режима
-chrome_options.add_argument("--window-size=1920x1080") # Размер окна
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu") 
+chrome_options.add_argument("--window-size=1920x1080") 
 service = Service()
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 driver.get(main_url)
 
-# Получаем HTML страницы после загрузки JavaScript
 html = driver.page_source
 soup = BeautifulSoup(html, 'html.parser')
-driver.quit() # Закрываем браузер, чтобы не расходовать ресурсы
+driver.quit()
 
 response = requests.get(main_url)
 soup = BeautifulSoup(response.text, 'html.parser')
