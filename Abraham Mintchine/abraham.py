@@ -3,13 +3,26 @@ from bs4 import BeautifulSoup
 import json
 import re
 import os
+import signal
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
-main_url = "https://mintchinesociety.org/?page_id=1388"
+should_exit = False
+
+def signal_handler(signal, frame):
+    global should_exit
+    should_exit = True
+
+signal.signal(signal.SIGINT, signal_handler)
+
 script_dir = os.path.dirname(__file__)
+json_file_path = os.path.join(script_dir, "Abraham.json")
+images_dir = os.path.join(script_dir, "images")
+os.makedirs(images_dir, exist_ok=True)
+
+main_url = "https://mintchinesociety.org/?page_id=1388"
 
 chrome_options = Options()
 chrome_options.add_argument("--headless")
@@ -24,15 +37,29 @@ html = driver.page_source
 soup = BeautifulSoup(html, 'html.parser')
 driver.quit()
 
+data = []
+image_counter = 0
+if os.path.exists(json_file_path):
+    with open(json_file_path, 'r', encoding='utf-8') as f:
+        loaded_data = json.load(f)
+        if isinstance(loaded_data, list):
+            data = loaded_data
+            if data:
+                image_counter = len(data)
+        elif isinstance(loaded_data, dict) and 'progress' in loaded_data:
+            data = loaded_data.get('paintings', [])
+            image_counter = loaded_data.get('progress', 0)
+
 response = requests.get(main_url)
 soup = BeautifulSoup(response.text, 'html.parser')
 
-data = []
-
-paintings_class_count = [f"row-{i}" for i in range(2, 101)]
-
-for painting_class in paintings_class_count:
+for i in range(image_counter + 2, 302):
     
+    if should_exit:
+           break
+    
+    painting_class = f"row-{i}"
+
     painting = soup.find('table', id='tablepress-98').find('tr', class_=f'{painting_class}')    
     if painting:
         painting_info = {}
@@ -76,8 +103,6 @@ for painting_class in paintings_class_count:
             provenances = [p.text.strip() for p in paragraphs]
             painting_info['provenance'] = provenances if provenances else None
 
-        images_dir = os.path.join(script_dir, "images")
-        os.makedirs(images_dir, exist_ok=True)
         image_section = painting.find('td', class_='column-1')
         if image_section:
             image_tag = image_section.find('img')
@@ -85,16 +110,17 @@ for painting_class in paintings_class_count:
                 image_url = image_tag.get('src')
                 painting_info['image_url'] = image_url
 
+                image_counter += 1
                 image_response = requests.get(image_url, stream=True)
                 image_response.raise_for_status()
-                image_name = f"{painting_info['title'].replace(' ', '_').replace('/', '_')}.jpg"
+                image_name = f"{image_counter}.jpg"
                 image_path = os.path.join(images_dir, image_name)
                 with open(image_path, 'wb') as img_file:
                     for chunk in image_response.iter_content(chunk_size=8192):
                         img_file.write(chunk)
     data.append(painting_info)
 
-json_file_path = os.path.join(script_dir, "Abraham.json")
-with open(json_file_path, 'w', encoding='utf-8') as f:
-    json.dump(data, f, indent=4, ensure_ascii=False)
+
+    with open(json_file_path, 'w', encoding='utf-8') as f:
+        json.dump({'progress': image_counter, 'paintings': data}, f, indent=4, ensure_ascii=False)
             
