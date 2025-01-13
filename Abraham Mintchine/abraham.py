@@ -26,6 +26,7 @@ soup = BeautifulSoup(response.text, 'html.parser')
 
 data = []
 image_counter = 0
+
 if os.path.exists(json_file_path):
     with open(json_file_path, 'r', encoding='utf-8') as f:
         loaded_data = json.load(f)
