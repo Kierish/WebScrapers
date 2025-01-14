@@ -4,6 +4,10 @@ import json
 import re
 import os
 import signal
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 should_exit = False
 
@@ -20,6 +24,19 @@ os.makedirs(images_dir, exist_ok=True)
 
 main_url = "https://mintchinesociety.org/?page_id=1388"
 
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu") 
+chrome_options.add_argument("--window-size=1920x1080") 
+service = Service()
+driver = webdriver.Chrome(service=service, options=chrome_options)
+
+driver.get(main_url)
+
+html = driver.page_source
+
+soup = BeautifulSoup(html, 'html.parser')
+driver.quit()
 response = requests.get(main_url)
 response.raise_for_status()
 soup = BeautifulSoup(response.text, 'html.parser')
