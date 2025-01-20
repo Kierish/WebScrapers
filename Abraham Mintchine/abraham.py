@@ -44,20 +44,19 @@ response.raise_for_status()
 soup = BeautifulSoup(response.text, 'html.parser')
 
 data = []
-image_counter = 0
+image_counter = 1
 
 if os.path.exists(json_file_path):
     with open(json_file_path, 'r', encoding='utf-8') as f:
         loaded_data = json.load(f)
         if isinstance(loaded_data, list):
             data = loaded_data
-            if data:
-                image_counter = len(data)
-        elif isinstance(loaded_data, dict) and 'progress' in loaded_data:
-            data = loaded_data.get('paintings', [])
-            image_counter = loaded_data.get('progress', 0)
+        else:
+            data = []
+        if data:
+            image_counter = max(item.get('id', 0) for item in data) + 1
 
-for i in range(image_counter + 2, 302):
+for i in range(image_counter + 1, 373):
     
     if should_exit:
            break
@@ -68,6 +67,7 @@ for i in range(image_counter + 2, 302):
     if painting:
         painting_info = {}
 
+        painting_info['id'] = image_counter
         painting_info['name_of_artist'] = "Abraham Mintchine"
 
         title = painting.find('td', class_='column-2')
@@ -114,7 +114,6 @@ for i in range(image_counter + 2, 302):
                 image_url = image_tag.get('src')
                 painting_info['image_url'] = image_url
 
-                image_counter += 1
                 image_response = requests.get(image_url, stream=True)
                 image_response.raise_for_status()
                 image_name = f"{image_counter}.jpg"
@@ -122,9 +121,11 @@ for i in range(image_counter + 2, 302):
                 with open(image_path, 'wb') as img_file:
                     for chunk in image_response.iter_content(chunk_size=8192):
                         img_file.write(chunk)
+                        
+                image_counter += 1
     data.append(painting_info)
 
 
     with open(json_file_path, 'w', encoding='utf-8') as f:
-        json.dump({'progress': image_counter, 'paintings': data}, f, indent=4, ensure_ascii=False)
+        json.dump(data, f, indent=4, ensure_ascii=False)
             

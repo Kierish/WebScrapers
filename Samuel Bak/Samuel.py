@@ -21,29 +21,18 @@ os.makedirs(images_dir, exist_ok=True)
 main_url = "https://www.kunst-archive.net/en/wvz/samuel_bak/works?v=grid&q=&group=type&filter=all&hpp=100&medium=&categories=&ip=2&start="
 
 data = []
-start_index = 0
+image_counter = 1
 if os.path.exists(json_file_path):
     with open(json_file_path, 'r', encoding='utf-8') as f:
         loaded_data = json.load(f)
         if isinstance(loaded_data, list):
             data = loaded_data
             if data:
-                start_index = len(data)
-        elif isinstance(loaded_data, dict) and 'progress' in loaded_data:
-            data = loaded_data.get('paintings', [])
-            start_index = loaded_data.get('progress', 0)
+                image_counter = max(item['id'] for item in data) + 1
 
-image_counter = 0
-if os.path.exists(images_dir):
-    existing_files = os.listdir(images_dir)
-    for file in existing_files:
-        match = re.match(r"(\d+)\.jpg", file)
-        if match:
-            image_counter = max(image_counter, int(match.group(1)))
-image_counter += 1
-
+start_index = len(data)
 start_page = start_index // 100
-for i in range(start_page, 3):
+for i in range(start_page, 100):
 
     if should_exit:
            break
@@ -74,6 +63,7 @@ for i in range(start_page, 3):
         painting = soup.find('div', class_='cut')
         if painting:
             painting_info = {}
+            painting_info['id'] = image_counter
             painting_info['name_of_artist'] = "Samuel Bak"
  
             title = painting.find('h2')
@@ -82,67 +72,83 @@ for i in range(start_page, 3):
 
             artwork_details = soup.find('ul', class_='right_col')
             if artwork_details:
+                num_li_tag = len(artwork_details.find_all('li'))
 
-                date = artwork_details.find_all('li')[0]
-                if date:
-                    date_text = date.text.strip()
-                    match_range_with_provenance = re.match(r'(\d{4})-(\d{4}),\s*in\s*(.*)', date_text)
-                    if match_range_with_provenance:
-                        painting_info['date'] = f"{match_range_with_provenance.group(1)}-{match_range_with_provenance.group(2)}"
-                        painting_info['provenance'] = match_range_with_provenance.group(3).strip()
-                    else:
-                        match_single_with_provenance = re.match(r'(\d{4}),\s*in\s*(.*)', date_text)
-                        if match_single_with_provenance:
-                            painting_info['date'] = match_single_with_provenance.group(1)
-                            painting_info['provenance'] = match_single_with_provenance.group(2).strip()
+                if num_li_tag >= 1:
+                    date = artwork_details.find_all('li')[0]
+                    if date:
+                        date_text = date.text.strip()
+                        match_range_with_provenance = re.match(r'(\d{4})-(\d{4}),\s*in\s*(.*)', date_text)
+                        if match_range_with_provenance:
+                            painting_info['date'] = f"{match_range_with_provenance.group(1)}-{match_range_with_provenance.group(2)}"
+                            painting_info['provenance'] = match_range_with_provenance.group(3).strip()
                         else:
-                            match_range = re.match(r'(\d{4})-(\d{4})', date_text)
-                            if match_range:
-                                painting_info['date'] = date_text
-                                painting_info['provenance'] = None
+                            match_single_with_provenance = re.match(r'(\d{4}),\s*in\s*(.*)', date_text)
+                            if match_single_with_provenance:
+                                painting_info['date'] = match_single_with_provenance.group(1)
+                                painting_info['provenance'] = match_single_with_provenance.group(2).strip()
                             else:
-                                match_single = re.match(r'(\d{4})', date_text)
-                                if match_single:
+                                match_range = re.match(r'(\d{4})-(\d{4})', date_text)
+                                if match_range:
                                     painting_info['date'] = date_text
                                     painting_info['provenance'] = None
                                 else:
-                                    painting_info['date'] = None
-                                    painting_info['provenance'] = None
-                else:
-                    painting_info['date'] = None
-                    painting_info['provenance'] = None
-
-                technique = artwork_details.find_all('li')[1]
-                painting_info['technique'] = technique.text.strip() if technique else None
-
-                dimensions_cm = artwork_details.find_all('li')[2].find('span', class_='size2')
-                if dimensions_cm:
-                    dimensions_text = dimensions_cm.text.strip()
-                    dimensions_text = dimensions_text.replace('(', '').replace(')', '').strip()
-                    painting_info['dimensions'] = dimensions_text
-                else:
-                    dimensions_inch = artwork_details.find_all('li')[2].find('span')
-                    if dimensions_inch:
-                        inch_text_parts = []
-
-                        for child in dimensions_inch.children:
-                            if child.name == 'sup' or child.name == 'sub':
-                                inch_text_parts.append(child.text)
-                            elif child.name is None:
-                                inch_text_parts.append(str(child).strip())
-
-                        painting_info['dimensions'] = " ".join(inch_text_parts).strip()
+                                    match_single = re.match(r'(\d{4})', date_text)
+                                    if match_single:
+                                        painting_info['date'] = date_text
+                                        painting_info['provenance'] = None
+                                    else:
+                                        painting_info['date'] = None
+                                        painting_info['provenance'] = None
                     else:
-                        painting_info['dimensions'] = None
+                        painting_info['date'] = None
+                        painting_info['provenance'] = None
+                else:
+                        painting_info['date'] = None
+                        painting_info['provenance'] = None
 
-                signature = artwork_details.find_all('li')[3]
-                if signature:
-                    br_element = signature.find('br')
-                    if br_element:
-                        br_element.extract()
-                    signature_text = signature.text.strip()
-                    if "Signed" in signature_text or "signed" in signature_text:
-                        painting_info['signature'] = signature_text
+                if num_li_tag >= 2:
+                    technique = artwork_details.find_all('li')[1]
+                    painting_info['technique'] = technique.text.strip() if technique else None
+
+                    dimensions_cm = artwork_details.find_all('li')[2].find('span', class_='size2')
+                    if dimensions_cm:
+                        dimensions_text = dimensions_cm.text.strip()
+                        dimensions_text = dimensions_text.replace('(', '').replace(')', '').strip()
+                        painting_info['dimensions'] = dimensions_text
+                    else:
+                        if num_li_tag >= 3:
+                            dimensions_inch = artwork_details.find_all('li')[2].find('span')
+                            if dimensions_inch:
+                                inch_text_parts = []
+
+                                for child in dimensions_inch.children:
+                                    if child.name == 'sup' or child.name == 'sub':
+                                        inch_text_parts.append(child.text)
+                                    elif child.name is None:
+                                        inch_text_parts.append(str(child).strip())
+
+                                painting_info['dimensions'] = " ".join(inch_text_parts).strip()
+                            else:
+                                painting_info['dimensions'] = None
+                        else:
+                            painting_info['dimensions'] = None
+                else:
+                    painting_info['technique'] = None
+                    painting_info['dimensions'] = None
+                    
+
+                if num_li_tag >= 4:
+                    signature = artwork_details.find_all('li')[3]
+                    if signature:
+                        br_element = signature.find('br')
+                        if br_element:
+                            br_element.extract()
+                        signature_text = signature.text.strip()
+                        if "Signed" in signature_text or "signed" in signature_text:
+                            painting_info['signature'] = signature_text
+                        else:
+                            painting_info['signature'] = None
                     else:
                         painting_info['signature'] = None
                 else:
@@ -189,23 +195,26 @@ for i in range(start_page, 3):
                 if image_tag:
                     image_url = image_tag.get('src')
                     image_url = f"https://www.kunst-archive.net{image_url}"
-                    painting_info['image_url'] = image_url
+                    if image_url != "https://www.kunst-archive.net/images/wwwartworkMax/AriesArchive_OhneBild-(eddb763e-525c-11ef-91a6-67f91507c307).jpg":
+                        painting_info['image_url'] = image_url
 
-                    image_response = requests.get(image_url, stream=True)
-                    image_response.raise_for_status()
-                    image_name = f"{image_counter}.jpg"
-                    image_path = os.path.join(images_dir, image_name)
-                    with open(image_path, 'wb') as img_file:
-                        for chunk in image_response.iter_content(chunk_size=8192):
-                            img_file.write(chunk)
+                        image_response = requests.get(image_url, stream=True)
+                        image_response.raise_for_status()
+                        image_name = f"{image_counter}.jpg"
+                        image_path = os.path.join(images_dir, image_name)
+                        with open(image_path, 'wb') as img_file:
+                            for chunk in image_response.iter_content(chunk_size=8192):
+                                img_file.write(chunk)
+                    else:
+                        painting_info['image_url'] = None
 
-                    image_counter += 1
                 else:
                     painting_info['image_url'] = None
             else:
                 painting_info['image_url'] = None
 
+            image_counter += 1
             data.append(painting_info)
 
             with open(json_file_path, 'w', encoding='utf-8') as f:
-                json.dump({'progress': i*100 + j + 1, 'paintings': data}, f, indent=4, ensure_ascii=False)
+                json.dump(data, f, indent=4, ensure_ascii=False)
