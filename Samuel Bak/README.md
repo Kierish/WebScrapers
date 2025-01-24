@@ -15,7 +15,7 @@ To use the project, follow these steps:
 1. Clone the repository:
 
     ```bash
-    git clone <repository URL>
+    git clone https://github.com/Kierish/WebScrapers.git
     cd <project directory>
     ```
 

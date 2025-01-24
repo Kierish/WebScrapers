@@ -9,7 +9,7 @@ This scraper collects artwork information from the **Abraham Mintchine** collect
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/yourusername/art-scraper.git
+    git clone https://github.com/Kierish/WebScrapers.git
     cd art-scraper
     ```
 
